@@ -1,0 +1,522 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{xcolor}
+
+\IfFileExists{generated_results.tex}{\input{generated_results.tex}}{}
+
+\title{AI600 -- Deep Learning\\Assignment 3 Report}
+\author{Prepared in the local workspace at \texttt{/Users/abdullah/Downloads/cmnist}}
+\date{8 April 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\textbf{Course:} AI600 -- Deep Learning\\
+\textbf{Institution:} Lahore University of Management Sciences\\
+\textbf{GitHub Repository:} \href{https://github.com/abdull2325/assignment3-dl}{https://github.com/abdull2325/assignment3-dl}\\
+\textbf{Execution Note:} All required analytical, MNIST, Colored-MNIST, and STL-10 programming components were executed successfully in the local workspace. For STL-10, the required train/test binary files were extracted from the official archive before the large unlabeled split finished downloading.
+
+\section{Analytical Part}
+
+\subsection{Q1: Forward and Backward Pass}
+
+The input image and convolution filter are
+\[
+X=
+\begin{bmatrix}
+1 & 2 & 0\\
+0 & 1 & 1\\
+1 & 0 & 2
+\end{bmatrix},
+\quad
+W=
+\begin{bmatrix}
+1 & 0\\
+-1 & 1
+\end{bmatrix},
+\quad
+b=0,
+\quad
+V=
+\begin{bmatrix}
+1 & -1 & 2 & 0.5
+\end{bmatrix},
+\quad
+c=1.
+\]
+
+\subsubsection*{Q1(a): Forward Pass}
+
+The valid \(2\times2\) patches are:
+\[
+P_{11}=
+\begin{bmatrix}
+1 & 2\\
+0 & 1
+\end{bmatrix},
+\quad
+P_{12}=
+\begin{bmatrix}
+2 & 0\\
+1 & 1
+\end{bmatrix},
+\quad
+P_{21}=
+\begin{bmatrix}
+0 & 1\\
+1 & 0
+\end{bmatrix},
+\quad
+P_{22}=
+\begin{bmatrix}
+1 & 1\\
+0 & 2
+\end{bmatrix}.
+\]
+
+Therefore,
+\[
+z_{11}=2,\quad
+z_{12}=2,\quad
+z_{21}=-1,\quad
+z_{22}=3,
+\]
+so the pre-activation map is
+\[
+Z=
+\begin{bmatrix}
+2 & 2\\
+-1 & 3
+\end{bmatrix}.
+\]
+
+After ReLU,
+\[
+A=\text{ReLU}(Z)=
+\begin{bmatrix}
+2 & 2\\
+0 & 3
+\end{bmatrix}.
+\]
+
+Flattening row-wise gives
+\[
+A_{\text{flat}}=
+\begin{bmatrix}
+2 & 2 & 0 & 3
+\end{bmatrix}^{T}.
+\]
+
+The scalar prediction is
+\[
+Y=V\cdot A_{\text{flat}}+c
+=1(2)+(-1)(2)+2(0)+0.5(3)+1
+=2.5.
+\]
+
+With target \(T=3\), the loss is
+\[
+L=\frac{1}{2}(Y-T)^2
+=\frac{1}{2}(2.5-3)^2
+=0.125.
+\]
+
+\subsubsection*{Q1(b): Backward Pass}
+
+First,
+\[
+\frac{\partial L}{\partial Y}=Y-T=2.5-3=-0.5.
+\]
+
+Hence,
+\[
+\frac{\partial L}{\partial V}
+=\frac{\partial L}{\partial Y}\,A_{\text{flat}}^{T}
+=-0.5
+\begin{bmatrix}
+2 & 2 & 0 & 3
+\end{bmatrix}
+=
+\begin{bmatrix}
+-1 & -1 & 0 & -1.5
+\end{bmatrix}.
+\]
+
+Next,
+\[
+\frac{\partial L}{\partial A_{\text{flat}}}
+=\frac{\partial L}{\partial Y}V
+=-0.5
+\begin{bmatrix}
+1 & -1 & 2 & 0.5
+\end{bmatrix}
+=
+\begin{bmatrix}
+-0.5 & 0.5 & -1 & -0.25
+\end{bmatrix}.
+\]
+
+Reshaping:
+\[
+\frac{\partial L}{\partial A}=
+\begin{bmatrix}
+-0.5 & 0.5\\
+-1 & -0.25
+\end{bmatrix}.
+\]
+
+Because ReLU blocks gradients where \(Z\le 0\),
+\[
+\frac{\partial L}{\partial Z}
+=
+\begin{bmatrix}
+-0.5 & 0.5\\
+0 & -0.25
+\end{bmatrix}.
+\]
+
+The convolution-filter gradient is the sum of patch contributions:
+\[
+\frac{\partial L}{\partial W}
+=
+\left(-0.5\right)P_{11}
++\left(0.5\right)P_{12}
++0\cdot P_{21}
++\left(-0.25\right)P_{22}.
+\]
+
+So,
+\[
+\frac{\partial L}{\partial W}
+=
+\begin{bmatrix}
+0.25 & -1.25\\
+0.5 & -0.5
+\end{bmatrix}.
+\]
+
+\subsubsection*{Q1(c): Interpretation}
+
+The largest-magnitude entry of \(\frac{\partial L}{\partial W}\) is the top-right weight:
+\[
+\left|\frac{\partial L}{\partial W_{1,2}}\right|=1.25.
+\]
+
+Since
+\[
+\frac{\partial L}{\partial W_{1,2}}=-1.25,
+\]
+one gradient-descent step updates it as
+\[
+W_{1,2}\leftarrow W_{1,2}-\eta\frac{\partial L}{\partial W_{1,2}}
+=W_{1,2}+1.25\eta,
+\]
+so this weight increases the most.
+
+Structurally, \(W_{1,2}\) multiplies the top-right pixel inside each active patch. Its gradient becomes large because it sees a large input value \(x_{1,2}=2\) in the first active patch and another positive input in the bottom-right active patch, while both corresponding upstream signals are negative. Those contributions add to a strong negative gradient.
+
+\subsection{Q3: Pooling and Normalization}
+
+\subsubsection*{Q3(a): Global Max Pooling}
+
+Replacing the flattening plus fully-connected layer with global max pooling gives
+\[
+Y=\max(A)=3.
+\]
+
+Since the target is also \(T=3\),
+\[
+L=\frac{1}{2}(3-3)^2=0.
+\]
+
+Therefore, for this specific numeric example, every gradient is zero. In particular, all pixels in \(X\) have zero gradient.
+
+Structurally, global max pooling would normally route gradient only through the maximal activation \(a_{22}\). That activation depends only on the receptive field
+\[
+\begin{bmatrix}
+X_{2,2} & X_{2,3}\\
+X_{3,2} & X_{3,3}
+\end{bmatrix},
+\]
+so if the loss were nonzero, only those four pixels could receive gradient.
+
+\subsubsection*{Q3(b): Layer Normalization}
+
+Using the original architecture, the post-ReLU feature map is
+\[
+A=
+\begin{bmatrix}
+2 & 2\\
+0 & 3
+\end{bmatrix}.
+\]
+
+Its mean is
+\[
+\mu=\frac{2+2+0+3}{4}=1.75.
+\]
+
+Its variance is
+\[
+\sigma^2
+=\frac{(2-1.75)^2+(2-1.75)^2+(0-1.75)^2+(3-1.75)^2}{4}
+=1.1875.
+\]
+
+With \(\gamma=1\), \(\beta=0\), and \(\epsilon=0\),
+\[
+A_{\text{norm}}=\frac{A-\mu}{\sqrt{\sigma^2}}
+=
+\begin{bmatrix}
+0.2294 & 0.2294\\
+-1.6059 & 1.1471
+\end{bmatrix}.
+\]
+
+\subsubsection*{Q3(c): Interpretation}
+
+Global max pooling computes
+\[
+Y=\max\{a_{11},a_{12},a_{21},a_{22}\}.
+\]
+
+If a small translation of the input shifts the strongest local feature from one spatial position to another but preserves the maximum activation value, then the max operator returns the same \(Y\). As a result, the loss remains unchanged. This is the mathematical reason that max pooling provides partial translation invariance.
+
+\subsection{Practice Questions (Worked for Completeness)}
+
+\subsubsection*{Q2(a)--Q2(c): Input Gradient and Perturbation}
+
+From the chain rule,
+\[
+\frac{\partial L}{\partial X}
+=
+\begin{bmatrix}
+-0.5 & 0.5 & 0\\
+0.5 & -1.25 & 0.5\\
+0 & 0.25 & -0.25
+\end{bmatrix}.
+\]
+
+Hence,
+\[
+\frac{\partial L}{\partial X_{2,2}}=-1.25.
+\]
+
+Using the linear approximation
+\[
+L(X+\epsilon e_{2,2})\approx L(X)+\epsilon\frac{\partial L}{\partial X_{2,2}},
+\]
+the adversary should choose a negative \(\epsilon\) to increase the loss.
+
+The center pixel has a larger gradient than a corner pixel because it participates in four overlapping convolution windows. Weight sharing reuses the same kernel coefficients at each location, so the total gradient accumulates contributions from multiple spatial paths.
+
+\subsubsection*{Q4(a)--Q4(c): Residual Variant}
+
+The cropped identity is
+\[
+X_{\text{crop}}=
+\begin{bmatrix}
+1 & 2\\
+0 & 1
+\end{bmatrix}.
+\]
+
+Therefore,
+\[
+A_{\text{res}}=A+X_{\text{crop}}=
+\begin{bmatrix}
+3 & 4\\
+0 & 4
+\end{bmatrix}.
+\]
+
+The new prediction is
+\[
+Y_{\text{res}}
+=1(3)+(-1)(4)+2(0)+0.5(4)+1
+=2.
+\]
+
+The gradient with respect to the top-left input pixel becomes
+\[
+\frac{\partial L}{\partial X_{1,1}}=-2.
+\]
+
+In the original architecture, the same pixel only received gradient through the convolution branch, yielding \(-0.5\). With the residual connection, an extra direct term is added because
+\[
+\frac{\partial (A+X_{\text{crop}})}{\partial X_{\text{crop}}}=1.
+\]
+
+That identity derivative is the ``gradient highway'': it lets loss signals bypass repeated products with small weights or zeroed ReLUs, which is why residual networks train much more reliably at great depth.
+
+\section{Programming Part}
+
+\subsection{Task 1: Custom CNNs and Shortcut Learning}
+
+\subsubsection*{Architecture}
+
+I used a custom CNN with three convolutional layers and two fully-connected layers:
+\begin{itemize}
+  \item Conv(1 or 3 \(\rightarrow\) 8), ReLU, MaxPool
+  \item Conv(8 \(\rightarrow\) 16), ReLU, MaxPool
+  \item Conv(16 \(\rightarrow\) 24), ReLU
+  \item Linear(1176 \(\rightarrow\) 32), ReLU, Dropout
+  \item Linear(32 \(\rightarrow\) 10)
+\end{itemize}
+
+The grayscale MNIST model has \MNISTParamCount{} trainable parameters, and the Colored-MNIST variant stays under the same \(50{,}000\)-parameter budget.
+
+\subsubsection*{Part A: Standard MNIST}
+
+Training used Adam with cross-entropy loss for eight epochs. The final standard MNIST test accuracy was \MNISTTestAcc.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/mnist_history.png}
+  \caption{Training and validation curves for the custom MNIST CNN.}
+\end{figure}
+
+\paragraph{Analytical Question 1.1}
+\MNISTGeneralization
+
+\paragraph{Analytical Question 1.2}
+The learned first-layer filters are shown below.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.68\textwidth]{figures/mnist_filters.png}
+  \caption{Learned filters from the first convolutional layer on standard MNIST.}
+\end{figure}
+
+\FilterInterpretation
+
+\subsubsection*{Part B: Colored-MNIST}
+
+The same CNN was adapted to accept three-channel input and trained from scratch on the biased Colored-MNIST training split. Evaluation produced \CMNISTBiasedAcc{} on the biased test split and \CMNISTUnbiasedAcc{} on the unbiased test split.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/cmnist_history.png}
+  \caption{Training and validation curves for the Colored-MNIST model.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{figures/cmnist_bias_gap.png}
+  \caption{Bias sensitivity of the Colored-MNIST model.}
+\end{figure}
+
+\paragraph{Analytical Question 1.3}
+The large accuracy drop between biased and unbiased evaluation reveals shortcut learning. Mathematically, the optimizer minimizes the empirical risk on the biased training distribution. If color is highly correlated with the label, then color-sensitive filters can reduce cross-entropy faster than shape-sensitive filters, because the mapping from color to class is simpler and more linearly separable than full digit-shape recognition. Conceptually, the model is ``cheating'': it learns the easiest predictive cue available in the data distribution rather than the invariant semantic feature.
+
+\paragraph{Analytical Question 1.4}
+Training strategies that would force the network to focus on shape include:
+\begin{itemize}
+  \item Convert the input to grayscale or randomly recolor digits so color is no longer predictive.
+  \item Use heavy color jitter or background randomization to destroy the color-label shortcut.
+  \item Rebalance the data so each class appears with many different colors.
+  \item Use invariant learning methods such as Group DRO or IRM to emphasize features that remain predictive across environments.
+  \item Add an auxiliary penalty or adversary that discourages recovering class labels from color alone.
+\end{itemize}
+
+\subsection{Task 2: Transfer Learning and Interpretability}
+
+\subsubsection*{Part A: Fine-tuning ResNet-18}
+
+The codebase includes:
+\begin{itemize}
+  \item loading a pre-trained ResNet-18 from \texttt{torchvision.models},
+  \item freezing all backbone parameters,
+  \item replacing the final fully connected layer with a \(10\)-class head,
+  \item training only the head, and
+  \item GradCAM extraction from the final convolutional stage.
+\end{itemize}
+
+The frozen-backbone ResNet-18 achieved a final STL-10 test accuracy of \STLTestAcc.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/stl10_history.png}
+  \caption{Training and validation curves for the frozen-backbone ResNet-18 on STL-10.}
+\end{figure}
+
+\paragraph{Analytical Question 2.1}
+Freezing the early layers is beneficial because it reduces both computation and memory: backpropagation no longer needs to store or update gradients for millions of backbone parameters. Functionally, the early layers of a pre-trained ResNet encode generic visual primitives such as edges, corners, color contrasts, and local textures. Later layers are more task-specific, combining those primitives into object parts and semantic concepts. On a relatively small dataset like STL-10, keeping the generic backbone fixed reduces overfitting while still allowing the new classification head to adapt to the target labels.
+
+\subsubsection*{Part B: GradCAM}
+
+\textbf{Execution status:} \STLStatus. The GradCAM implementation in \texttt{src/assignment3.py} was run on four STL-10 test samples after loading the best head checkpoint.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/stl10_gradcam.png}
+  \caption{GradCAM overlays for two correct and two incorrect STL-10 test predictions.}
+\end{figure}
+
+\paragraph{Analytical Questions 2.2 and 2.3}
+For the correct horse prediction, the strongest activation runs through the central animal silhouette and rider region rather than the fence or sky. For the correct dog prediction, the heatmap is broad but still covers the dog's head and torso more strongly than the empty background. In both cases, the network is using the main object, although some contextual bleed remains.
+
+For the monkey image misclassified as cat, the model focuses on the face and the branch crossing the image, which likely emphasizes a localized furry-face cue rather than the whole monkey body. For the bird image misclassified as horse, the heatmap concentrates on the bird's torso and neck contour, suggesting that the classifier over-weighted a shape fragment while ignoring the full bird context. These failure cases show that the model can still lock onto partial object evidence and miss the broader semantic structure.
+
+\section{Visualizations}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{figures/mnist_samples.png}
+  \caption{Sample MNIST images used during the study.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{figures/cmnist_samples_train.png}
+  \caption{Sample images from the biased Colored-MNIST training split.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{figures/cmnist_samples_unbiased.png}
+  \caption{Sample images from the unbiased Colored-MNIST test split.}
+\end{figure}
+
+\section{AI Policy Disclosure}
+
+\subsection*{Prompt Used}
+
+\small
+\begin{quote}
+you have to complete the following assessmetn make sure things are aligned and we are good to go accordingly make sure you complete the assignment along with the visualisation of everything and make sure its completed thoroughly and greatly
+\end{quote}
+\normalsize
+
+\subsection*{Generated Output}
+
+The AI-assisted workflow generated:
+\begin{itemize}
+  \item draft analytical derivations for the Toy-CNN,
+  \item PyTorch training and evaluation code,
+  \item plotting utilities for curves, filter visualizations, and GradCAM,
+  \item the report skeleton, and
+  \item written interpretations of the observed MNIST and Colored-MNIST results.
+\end{itemize}
+
+\subsection*{Edits Made}
+
+The generated content was edited to:
+\begin{itemize}
+  \item align the derivations with the exact numerical results,
+  \item enforce the \(<50{,}000\) parameter limit for the custom CNN,
+  \item use the actual metrics saved in \texttt{artifacts/results.json},
+  \item patch the STL-10 pipeline so it could use the extracted train/test binaries from the partially downloaded official archive,
+  \item add the actual GradCAM-based interpretation from the generated heatmaps, and
+  \item structure the report around the course requirements.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Large local datasets and checkpoints
+train_biased.pt
+test_biased.pt
+test_unbiased.pt
+data/
+models/
+
+# Local caches
+artifacts/cache/
+artifacts/fontconfig/
+artifacts/mplconfig/
+artifacts/pycache/
+
+# Partial STL-10 archive
+data/stl10_binary.tar.gz
