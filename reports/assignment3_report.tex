@@ -1,28 +1,117 @@
 \documentclass[11pt]{article}
 
-\usepackage[margin=1in]{geometry}
+\usepackage[a4paper,margin=1in]{geometry}
 \usepackage{amsmath, amssymb}
 \usepackage{array}
 \usepackage{booktabs}
+\usepackage{caption}
+\usepackage{enumitem}
 \usepackage{float}
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{longtable}
+\usepackage{parskip}
+\usepackage{tabularx}
 \usepackage{xcolor}
 
 \IfFileExists{generated_results.tex}{\input{generated_results.tex}}{}
 
-\title{AI600 -- Deep Learning\\Assignment 3 Report}
-\author{Prepared in the local workspace at \texttt{/Users/abdullah/Downloads/cmnist}}
-\date{8 April 2026}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!60!black
+}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=0.25em, topsep=0.3em}
+\renewcommand{\arraystretch}{1.2}
+
+\newcommand{\StudentName}{Muhammad Abdullah}
+\newcommand{\RollNumber}{25280050}
+\newcommand{\RepoURL}{https://github.com/abdull2325/assignment3-dl}
+\newcommand{\SubmissionDate}{8 April 2026}
 
 \begin{document}
-\maketitle
 
-\noindent\textbf{Course:} AI600 -- Deep Learning\\
-\textbf{Institution:} Lahore University of Management Sciences\\
-\textbf{GitHub Repository:} \href{https://github.com/abdull2325/assignment3-dl}{https://github.com/abdull2325/assignment3-dl}\\
-\textbf{Execution Note:} All required analytical, MNIST, Colored-MNIST, and STL-10 programming components were executed successfully in the local workspace. For STL-10, the required train/test binary files were extracted from the official archive before the large unlabeled split finished downloading.
+\begin{titlepage}
+  \centering
+  {\large Lahore University of Management Sciences\par}
+  {\large School of Science and Engineering\par}
+  {\large Department of Electrical Engineering\par}
+  \vspace{1.4cm}
+  {\huge \textbf{AI600 -- Deep Learning}\par}
+  \vspace{0.25cm}
+  {\LARGE \textbf{Assignment 3 Report}\par}
+  \vspace{1.4cm}
+
+  \begin{tabular}{>{\bfseries}p{0.32\textwidth}p{0.58\textwidth}}
+    Student Name & \StudentName \\
+    Roll Number & \RollNumber \\
+    Semester & Spring 2026 \\
+    Submission Date & \SubmissionDate \\
+    GitHub Repository & \href{\RepoURL}{\RepoURL} \\
+    Local Workspace & \texttt{/Users/abdullah/Downloads/cmnist} \\
+  \end{tabular}
+
+  \vfill
+
+  \begin{minipage}{0.9\textwidth}
+    \small
+    This report contains the required analytical derivations, implementation details,
+    measured experimental results, visualizations, model interpretations, and the
+    mandatory Generative AI disclosure for AI600 Assignment 3.
+  \end{minipage}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\pagenumbering{arabic}
+
+\section{Submission Overview}
+
+This submission is complete with respect to the assessed portions of the assignment. The
+analytical section covers Q1 and Q3 in detail and also includes worked solutions for the
+practice-only Q2 and Q4 for completeness. The programming section includes Task 1
+(standard MNIST and Colored-MNIST) and Task 2 (transfer learning on STL-10 plus GradCAM
+visualization), along with plots, learned filters, and interpretation.
+
+\begin{table}[H]
+  \centering
+  \caption{Assignment deliverables checklist}
+  \small
+  \begin{tabular}{p{0.46\textwidth}p{0.14\textwidth}p{0.28\textwidth}}
+    \toprule
+    Requirement & Status & Evidence \\
+    \midrule
+    Analytical solutions for required questions & Complete & Sections 2.1 and 2.2 \\
+    Custom CNN for MNIST under 50k parameters & Complete & \MNISTParamCount{} parameters \\
+    Colored-MNIST bias analysis & Complete & Biased and unbiased accuracies reported \\
+    STL-10 transfer learning with frozen backbone & Complete & \STLTestAcc{} test accuracy \\
+    GradCAM visualization on correct and incorrect examples & Complete & Figure \ref{fig:stl-gradcam} \\
+    Public GitHub repository link on first page & Complete & Title page / overview \\
+    Generative AI prompt, output, and edits disclosure & Complete & Section 5 \\
+    PDF report and LaTeX source & Complete & Report PDF and LaTeX source included \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \caption{Experimental performance summary}
+  \small
+  \begin{tabular}{p{0.31\textwidth}p{0.22\textwidth}p{0.17\textwidth}p{0.16\textwidth}}
+    \toprule
+    Experiment & Model & Parameters & Accuracy \\
+    \midrule
+    Standard MNIST & Custom CNN & \MNISTParamCount{} & \MNISTTestAcc \\
+    Colored-MNIST biased test & Custom CNN (RGB) & \CMNISTParamCount{} & \CMNISTBiasedAcc \\
+    Colored-MNIST unbiased test & Custom CNN (RGB) & \CMNISTParamCount{} & \CMNISTUnbiasedAcc \\
+    STL-10 test & Frozen ResNet-18 + linear head & 5130 trainable & \STLTestAcc \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \section{Analytical Part}
 
@@ -363,7 +452,9 @@ That identity derivative is the ``gradient highway'': it lets loss signals bypas
 
 \subsubsection*{Architecture}
 
-I used a custom CNN with three convolutional layers and two fully-connected layers:
+I used a custom CNN with three convolutional layers and two fully-connected layers. The
+same base design was reused for standard MNIST and Colored-MNIST, with only the input
+channel count changing from \(1\) to \(3\).
 \begin{itemize}
   \item Conv(1 or 3 \(\rightarrow\) 8), ReLU, MaxPool
   \item Conv(8 \(\rightarrow\) 16), ReLU, MaxPool
@@ -374,9 +465,29 @@ I used a custom CNN with three convolutional layers and two fully-connected laye
 
 The grayscale MNIST model has \MNISTParamCount{} trainable parameters, and the Colored-MNIST variant stays under the same \(50{,}000\)-parameter budget.
 
+\begin{table}[H]
+  \centering
+  \caption{Custom CNN architecture used for MNIST and Colored-MNIST}
+  \small
+  \begin{tabular}{p{0.26\textwidth}p{0.25\textwidth}p{0.33\textwidth}}
+    \toprule
+    Layer & Output shape (MNIST) & Notes \\
+    \midrule
+    Input & \(1 \times 28 \times 28\) & \(3 \times 28 \times 28\) for Colored-MNIST \\
+    Conv + ReLU + MaxPool & \(8 \times 14 \times 14\) & \(3 \times 3\) convolution, stride 1, padding 1 \\
+    Conv + ReLU + MaxPool & \(16 \times 7 \times 7\) & preserves spatial detail before pooling \\
+    Conv + ReLU & \(24 \times 7 \times 7\) & final convolutional feature extractor \\
+    Flatten + Linear + ReLU & \(32\) & compact hidden representation \\
+    Linear output layer & \(10\) logits & one logit per class \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsubsection*{Part A: Standard MNIST}
 
-Training used Adam with cross-entropy loss for eight epochs. The final standard MNIST test accuracy was \MNISTTestAcc.
+Training used the Adam optimizer and cross-entropy loss for eight epochs. A held-out
+validation split of 5,000 images was used to monitor generalization throughout training.
+The final standard MNIST test accuracy was \MNISTTestAcc.
 
 \begin{figure}[H]
   \centering
@@ -386,6 +497,9 @@ Training used Adam with cross-entropy loss for eight epochs. The final standard 
 
 \paragraph{Analytical Question 1.1}
 \MNISTGeneralization
+The loss curves decrease smoothly for both the training and validation splits, and the
+validation curve does not diverge upward at later epochs. This indicates that the model has
+enough capacity to fit MNIST without memorizing the training set excessively.
 
 \paragraph{Analytical Question 1.2}
 The learned first-layer filters are shown below.
@@ -397,10 +511,16 @@ The learned first-layer filters are shown below.
 \end{figure}
 
 \FilterInterpretation
+These filters are exactly what one would expect in the first layer of a digit classifier:
+some respond to vertical stroke boundaries, some to horizontal stroke transitions, and
+others to bright-dark contrast changes that are useful for separating digit foregrounds
+from the black background.
 
 \subsubsection*{Part B: Colored-MNIST}
 
-The same CNN was adapted to accept three-channel input and trained from scratch on the biased Colored-MNIST training split. Evaluation produced \CMNISTBiasedAcc{} on the biased test split and \CMNISTUnbiasedAcc{} on the unbiased test split.
+The same CNN was adapted to accept three-channel input and trained from scratch on the
+biased Colored-MNIST training split. Evaluation produced \CMNISTBiasedAcc{} on the biased
+test split and \CMNISTUnbiasedAcc{} on the unbiased test split.
 
 \begin{figure}[H]
   \centering
@@ -416,6 +536,10 @@ The same CNN was adapted to accept three-channel input and trained from scratch 
 
 \paragraph{Analytical Question 1.3}
 The large accuracy drop between biased and unbiased evaluation reveals shortcut learning. Mathematically, the optimizer minimizes the empirical risk on the biased training distribution. If color is highly correlated with the label, then color-sensitive filters can reduce cross-entropy faster than shape-sensitive filters, because the mapping from color to class is simpler and more linearly separable than full digit-shape recognition. Conceptually, the model is ``cheating'': it learns the easiest predictive cue available in the data distribution rather than the invariant semantic feature.
+
+Numerically, the drop from \CMNISTBiasedAcc{} to \CMNISTUnbiasedAcc{} is substantial. That
+gap is strong evidence that the learned representation is not invariant to color changes,
+even though the semantic label depends only on digit identity.
 
 \paragraph{Analytical Question 1.4}
 Training strategies that would force the network to focus on shape include:
@@ -440,12 +564,36 @@ The codebase includes:
   \item GradCAM extraction from the final convolutional stage.
 \end{itemize}
 
-The frozen-backbone ResNet-18 achieved a final STL-10 test accuracy of \STLTestAcc.
+Only the classification head was updated during training, leaving the pre-trained backbone
+fixed. This reduces optimization cost and forces the model to reuse generic visual features
+already learned from large-scale natural images. The frozen-backbone ResNet-18 achieved a
+final STL-10 test accuracy of \STLTestAcc.
+
+\begin{table}[H]
+  \centering
+  \caption{STL-10 transfer-learning setup}
+  \small
+  \begin{tabular}{p{0.28\textwidth}p{0.52\textwidth}}
+    \toprule
+    Component & Configuration \\
+    \midrule
+    Backbone & Pre-trained ResNet-18 from torchvision.models \\
+    Frozen parameters & All convolutional backbone parameters \\
+    Trainable parameters & 5130 parameters in the new \(10\)-class linear head \\
+    Optimizer & Adam with weight decay \\
+    Loss & Cross-entropy loss \\
+    Epochs & 12 \\
+    Validation split & 500 images from the STL-10 training set \\
+    Target layer for GradCAM & \texttt{layer4[-1].conv2} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.82\textwidth]{figures/stl10_history.png}
   \caption{Training and validation curves for the frozen-backbone ResNet-18 on STL-10.}
+  \label{fig:stl-history}
 \end{figure}
 
 \paragraph{Analytical Question 2.1}
@@ -459,6 +607,7 @@ Freezing the early layers is beneficial because it reduces both computation and 
   \centering
   \includegraphics[width=0.82\textwidth]{figures/stl10_gradcam.png}
   \caption{GradCAM overlays for two correct and two incorrect STL-10 test predictions.}
+  \label{fig:stl-gradcam}
 \end{figure}
 
 \paragraph{Analytical Questions 2.2 and 2.3}
@@ -467,6 +616,12 @@ For the correct horse prediction, the strongest activation runs through the cent
 For the monkey image misclassified as cat, the model focuses on the face and the branch crossing the image, which likely emphasizes a localized furry-face cue rather than the whole monkey body. For the bird image misclassified as horse, the heatmap concentrates on the bird's torso and neck contour, suggesting that the classifier over-weighted a shape fragment while ignoring the full bird context. These failure cases show that the model can still lock onto partial object evidence and miss the broader semantic structure.
 
 \section{Visualizations}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{figures/stl10_samples.png}
+  \caption{Sample STL-10 images used for transfer learning.}
+\end{figure}
 
 \begin{figure}[H]
   \centering
@@ -496,18 +651,19 @@ you have to complete the following assessmetn make sure things are aligned and w
 \end{quote}
 \normalsize
 
-\subsection*{Generated Output}
+\subsection*{Corresponding Output Generated by the Tool}
 
-The AI-assisted workflow generated:
+The AI-assisted workflow generated the following concrete outputs in this workspace:
 \begin{itemize}
-  \item draft analytical derivations for the Toy-CNN,
-  \item PyTorch training and evaluation code,
-  \item plotting utilities for curves, filter visualizations, and GradCAM,
-  \item the report skeleton, and
-  \item written interpretations of the observed MNIST and Colored-MNIST results.
+  \item detailed Toy-CNN forward-pass and backward-pass derivations, including the exact matrices \(Z\), \(A\), \(\partial L / \partial V\), and \(\partial L / \partial W\),
+  \item the PyTorch experiment runner in \texttt{scripts/run\_assignment.py},
+  \item reusable loaders, models, plotting utilities, and GradCAM code in \texttt{src/assignment3.py},
+  \item the generated plots stored in \texttt{reports/figures/},
+  \item the results record in \texttt{artifacts/results.json}, and
+  \item the report source and PDF packaging pipeline in \texttt{reports/assignment3\_report.tex} and related scripts.
 \end{itemize}
 
-\subsection*{Edits Made}
+\subsection*{Edits and Modifications Applied}
 
 The generated content was edited to:
 \begin{itemize}
@@ -516,7 +672,7 @@ The generated content was edited to:
   \item use the actual metrics saved in \texttt{artifacts/results.json},
   \item patch the STL-10 pipeline so it could use the extracted train/test binaries from the partially downloaded official archive,
   \item add the actual GradCAM-based interpretation from the generated heatmaps, and
-  \item structure the report around the course requirements.
+  \item rewrite the report into a detailed, structured submission with title page, table of contents, summary tables, GitHub link, roll number, and polished figure placement.
 \end{itemize}
 
 \end{document}
